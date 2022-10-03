@@ -1,0 +1,129 @@
+link:
+
+springboot + apache camel
+===========================
+apache camel : 
+              open source
+              integration framework
+              used to transfer data b/w systems
+              support different type of protocol like HTTP,FTP,FILE,JMS...
+              support hadoop,PHP,python...
+              we can transfer the data json, xml,text ..
+camel operations:
+                  route:
+                        process of transphering the data from system1 to system2(sorce to dest)
+                        file system to file system
+                        file system to MQ
+                        file system to DB
+                        MQ to file system
+                        MQ to MQ
+                        MQ to DB
+                        DB to file system
+                        DB to MQ
+                        DB to DB
+                  Filetring
+                            check condition before transfer
+                  process
+                          modify/conversion xml->jason
+ camel coding is done by using EIP: Enterprice I ntegration Pattern
+ some other messaging tools like apache camel are 
+                                                   spring batch-->replacement of batch is camel
+                                                   Active MQ
+                                                   Kafka
+ usage of apache camel : u have logs in prod env and u need to transphr to dev env- use camel
+ in kafaka and all MQ to MQ transphering is happening but in camel cross integration is possibkle
+ 
+ springboot support auto configuration with apache camel using starter
+ <dependency>
+			<groupId>org.apache.camel.springboot</groupId>
+			<artifactId>camel-spring-boot-starter</artifactId>
+			<version>3.18.1</version>
+ </dependency>
+ 
+ to implement a router class in our application we need to extent one abstarct class called RouterBuilder and overide a method in that class called configure
+ 
+ camel.springboot.main-run-controller=true is it in application proprty  - MyRoute(@Component) will stop when main method stops if we want run this class in background we can make that property as false
+ 
+ to transfer source files to dest we use from() and to() method
+ from(): 
+        parameter is the location of the file
+		implimentation
+		--------------
+		public RouteDefinition from(String uri) {
+        this.getRouteCollection().setCamelContext(this.getContext());
+        if (this.resource != null) {
+            this.getRouteCollection().setResource(this.resource);
+        }
+		//class RouteBuilder
+to(): 
+	  parametr of te dest
+	  implimentation
+	  -------------
+	  public Type to(@AsEndpointUri String uri) {
+        this.addOutput(new ToDefinition(uri));
+        return this.asType();
+    }
+	
+	//class-processdefinition
+	
+====================================================
+EXAMPLE 1
+#1 create 1 spring starter project
+name = camel demo
+depenedency: apache camel
+
+#2. application .properties 
+camel.springboot.main-run-controller=true
+
+#3. Router class
+
+import org.apache.camel.builder.RouteBuilder;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MyRoute extends RouteBuilder {
+
+    @Override
+    public void configure() throws Exception {
+        //from("http").to("jms"); didffrent compination of protocol will work here
+        //I have 2 files in the source location and nothing in the dest
+        from("file:C:\\Users\\206968\\Documents\\source").to("file:C:\\Users\\206968\\Documents\\destination");
+        //DATA TRANSFER IS DONE
+    }
+}
+
+//ftp also we can use
+
+#4. run main class
+
+execution: create a folder name source in anywhere in our system --> create a folder name destination in anywhere in our system -->add some files to source folder --> give the source and dest path in the rout class --> start the app --> file will get transfer
+
+once transfered the files backup will be there in the source folder (inside .camel foldr)
+
+keep the app in running --> copy one file into source from some other location --> it instantly got transfered into the dest location
+until i stop the main class we can transfer like this
+
+we can say that source(listening mode) is waiting for input to transfer into destination
+
+if we edit the content of file with the same name of already transfered file the content will override
+
+if  we dont want to backup (.camel folder) --> so we can sent the same file multiple time 
+
+EIP Patterns: 
+
+#1. from("file:C:\\Users\\206968\\Documents\\source").to("file:C:\\Users\\206968\\Documents\\destination");
+
+#2. from("file:C:\\Users\\206968\\Documents\\source?noop=true").to("file:C:\\Users\\206968\\Documents\\destination");
+                                                   ----------
+                                                      |->noop=no operation overriding --> no oveerride will happen-->
+													  
+		no backup
+		avoid sending duplicates
+
+#3. from("{{my.app.source}}").to("{{my.app.destination}}");
+     in application.properties file mention this 2 lines:
+			my.app.source=file:C:\\Users\\206968\\Documents\\source?noop=true
+			my.app.destination=file:C:\Users\206968\Documents\destination
+			
+
+ 
